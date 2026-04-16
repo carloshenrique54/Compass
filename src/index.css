@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --color-compass-blue: #0f64a9;
+  --color-compass-orange: #ff7b2a;
+  --color-compass-bg: #f0eded;
+  --color-compass-green: #22c55e;
+  --color-compass-yellow: #eab308;
+  --color-compass-red: #ef4444;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    font-family: "Inter", system-ui, sans-serif;
+    background-color: var(--color-compass-bg);
+  }
+
+  body {
+    @apply m-0 p-0 antialiased text-slate-800;
+  }
+}
+
+/* Leaflet map overrides */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+}
