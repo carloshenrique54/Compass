@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Map, Route, Truck, Users, FileText, ChevronRight, Compass, Database } from 'lucide-react';
+import { LayoutDashboard, Map, Route, Truck, Users, FileText, ChevronRight, Compass, Package } from 'lucide-react';
 
 
 const navItems = [
@@ -8,6 +8,7 @@ const navItems = [
   { name: 'Gestão de Rotas', path: '/routes', icon: Route },
   { name: 'Veículos', path: '/vehicles', icon: Truck },
   { name: 'Operadores', path: '/operators', icon: Users },
+  { name: 'Estoque', path: '/stock', icon: Package },
   { name: 'Relatórios', path: '/reports', icon: FileText },
 ];
 

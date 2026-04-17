@@ -8,6 +8,7 @@ import { RoutesList } from './views/RoutesList';
 import { Vehicles } from './views/Vehicles';
 import { Operators } from './views/Operators';
 import { Reports } from './views/Reports';
+import { Stock } from './views/Stock';
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
             <Route path="/routes" element={<RoutesList />} />
             <Route path="/vehicles" element={<Vehicles />} />
             <Route path="/operators" element={<Operators />} />
+            <Route path="/stock" element={<Stock />} />
             <Route path="/reports" element={<Reports />} />
           </Routes>
         </Layout>

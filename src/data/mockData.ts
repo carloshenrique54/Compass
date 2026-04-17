@@ -136,3 +136,162 @@ export const getCoordsByName = (name: string): [number, number] | undefined => {
   }
   return undefined;
 };
+
+// ─── Stock / Inventory ───────────────────────────────────────────────────────
+
+export type StockCategory = 'minerio' | 'carga_geral' | 'container' | 'combustivel' | 'equipamento';
+export type StockStatus = 'normal' | 'low' | 'critical' | 'full';
+export type MovementType = 'entrada' | 'saida' | 'transferencia';
+
+export interface StockItem {
+  id: string;
+  name: string;
+  category: StockCategory;
+  quantity: number;
+  unit: 't' | 'un' | 'L' | 'm³';
+  minStock: number;
+  maxStock: number;
+  location: string;
+  lastMovement: string;
+  status: StockStatus;
+  description?: string;
+}
+
+export interface StockMovement {
+  id: string;
+  stockItemId: string;
+  stockItemName: string;
+  type: MovementType;
+  quantity: number;
+  timestamp: string;
+  routeId?: string;
+  vehicleId?: string;
+  operator?: string;
+  notes?: string;
+}
+
+export const computeStockStatus = (quantity: number, minStock: number, maxStock: number): StockStatus => {
+  const pct = quantity / maxStock;
+  if (quantity <= minStock * 0.5) return 'critical';
+  if (quantity <= minStock) return 'low';
+  if (pct >= 0.95) return 'full';
+  return 'normal';
+};
+
+const now = new Date();
+const hrsAgo = (h: number) => new Date(now.getTime() - h * 3600000).toISOString();
+
+export const initialStock: StockItem[] = [
+  {
+    id: 'EST-001',
+    name: 'Minério de Ferro',
+    category: 'minerio',
+    quantity: 45000,
+    unit: 't',
+    minStock: 10000,
+    maxStock: 80000,
+    location: 'Pátio de Empilhamento Sul',
+    lastMovement: hrsAgo(2),
+    status: 'normal',
+    description: 'Minério de ferro granulado – embarque Píer I e III',
+  },
+  {
+    id: 'EST-002',
+    name: 'Manganês',
+    category: 'minerio',
+    quantity: 3200,
+    unit: 't',
+    minStock: 5000,
+    maxStock: 20000,
+    location: 'Pátio de Empilhamento Norte',
+    lastMovement: hrsAgo(6),
+    status: 'low',
+    description: 'Minério de manganês em pó – requer cobertura',
+  },
+  {
+    id: 'EST-003',
+    name: 'Carvão Mineral',
+    category: 'minerio',
+    quantity: 12000,
+    unit: 't',
+    minStock: 8000,
+    maxStock: 40000,
+    location: 'Pátio Norte – Setor C',
+    lastMovement: hrsAgo(4),
+    status: 'normal',
+    description: 'Carvão térmico e metalúrgico',
+  },
+  {
+    id: 'EST-004',
+    name: 'Alumínio (Al₂O₃)',
+    category: 'minerio',
+    quantity: 800,
+    unit: 't',
+    minStock: 2000,
+    maxStock: 15000,
+    location: 'Armazém Coberto A',
+    lastMovement: hrsAgo(12),
+    status: 'critical',
+    description: 'Alumina calcinada – produto sensível à umidade',
+  },
+  {
+    id: 'EST-005',
+    name: 'Carga Geral',
+    category: 'carga_geral',
+    quantity: 320,
+    unit: 'un',
+    minStock: 50,
+    maxStock: 1000,
+    location: 'Armazém B – TEGRAM',
+    lastMovement: hrsAgo(1),
+    status: 'normal',
+    description: 'Volumes paletizados e sacaria em geral',
+  },
+  {
+    id: 'EST-006',
+    name: 'Containers (TEU)',
+    category: 'container',
+    quantity: 1240,
+    unit: 'un',
+    minStock: 200,
+    maxStock: 2000,
+    location: 'Terminal TEGRAM – Pátio de Containers',
+    lastMovement: hrsAgo(0.5),
+    status: 'normal',
+    description: 'Containers de 20 e 40 pés – importação e exportação',
+  },
+  {
+    id: 'EST-007',
+    name: 'Óleo Diesel',
+    category: 'combustivel',
+    quantity: 280000,
+    unit: 'L',
+    minStock: 100000,
+    maxStock: 500000,
+    location: 'Tanque Central – Área de Abastecimento',
+    lastMovement: hrsAgo(3),
+    status: 'normal',
+    description: 'Diesel S-10 para abastecimento de frota e equipamentos',
+  },
+  {
+    id: 'EST-008',
+    name: 'Peças de Manutenção',
+    category: 'equipamento',
+    quantity: 150,
+    unit: 'un',
+    minStock: 30,
+    maxStock: 500,
+    location: 'Almoxarifado – Oficina Central Vale',
+    lastMovement: hrsAgo(8),
+    status: 'normal',
+    description: 'Rolamentos, correias, filtros e sobressalentes gerais',
+  },
+];
+
+export const initialMovements: StockMovement[] = [
+  { id: 'MOV-001', stockItemId: 'EST-001', stockItemName: 'Minério de Ferro', type: 'entrada', quantity: 5000, timestamp: hrsAgo(2), vehicleId: 'VH-001', operator: 'Pedro Alves', notes: 'Descarga vagão – Virador' },
+  { id: 'MOV-002', stockItemId: 'EST-002', stockItemName: 'Manganês', type: 'saida', quantity: 1800, timestamp: hrsAgo(6), routeId: 'ROTA-005', vehicleId: 'VH-002', operator: 'Rafael Costa', notes: 'Embarque Berço 100' },
+  { id: 'MOV-003', stockItemId: 'EST-007', stockItemName: 'Óleo Diesel', type: 'saida', quantity: 2000, timestamp: hrsAgo(3), operator: 'João Santos', notes: 'Abastecimento frota matutina' },
+  { id: 'MOV-004', stockItemId: 'EST-004', stockItemName: 'Alumínio (Al₂O₃)', type: 'saida', quantity: 3200, timestamp: hrsAgo(12), routeId: 'ROTA-003', operator: 'Marcos Silva', notes: 'Embarque Píer IV – exportação' },
+  { id: 'MOV-005', stockItemId: 'EST-006', stockItemName: 'Containers (TEU)', type: 'entrada', quantity: 80, timestamp: hrsAgo(0.5), operator: 'Pedro Alves', notes: 'Atracação navio cargueiro' },
+];

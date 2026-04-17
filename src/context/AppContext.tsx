@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { initialOperators, initialVehicles, initialRoutes, initialEvents, LOCATIONS, INTERDICTIONS } from '../data/mockData';
-import type { Operator, Vehicle, Route, EventLog } from '../data/mockData';
+import { initialOperators, initialVehicles, initialRoutes, initialEvents, initialStock, initialMovements, LOCATIONS, INTERDICTIONS, computeStockStatus } from '../data/mockData';
+import type { Operator, Vehicle, Route, EventLog, StockItem, StockMovement, MovementType } from '../data/mockData';
 
 interface AppContextType {
   operators: Operator[];
@@ -10,6 +10,8 @@ interface AppContextType {
   events: EventLog[];
   locations: typeof LOCATIONS;
   interdictions: typeof INTERDICTIONS;
+  stock: StockItem[];
+  movements: StockMovement[];
   setOperators: (ops: Operator[]) => void;
   setVehicles: (vs: Vehicle[]) => void;
   addRoute: (route: Route) => void;
@@ -20,6 +22,10 @@ interface AppContextType {
   addVehicle: (v: Vehicle) => void;
   addLocation: (category: keyof typeof LOCATIONS, name: string, coords: [number, number]) => void;
   addInterdiction: (inter: typeof INTERDICTIONS[0]) => void;
+  addStockItem: (item: Omit<StockItem, 'id' | 'status' | 'lastMovement'>) => void;
+  updateStockItem: (id: string, data: Partial<Omit<StockItem, 'id'>>) => void;
+  removeStockItem: (id: string) => void;
+  registerMovement: (movement: Omit<StockMovement, 'id'> & { type: MovementType }) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -31,6 +37,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [events, setEvents] = useState<EventLog[]>(initialEvents);
   const [locations, setLocations] = useState(LOCATIONS);
   const [interdictions, setInterdictions] = useState(INTERDICTIONS);
+  const [stock, setStock] = useState<StockItem[]>(initialStock);
+  const [movements, setMovements] = useState<StockMovement[]>(initialMovements);
 
   useEffect(() => {
     let active = true;
@@ -149,6 +157,51 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const addStockItem = (item: Omit<StockItem, 'id' | 'status' | 'lastMovement'>) => {
+    const id = `EST-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+    const status = computeStockStatus(item.quantity, item.minStock, item.maxStock);
+    const newItem: StockItem = { ...item, id, status, lastMovement: new Date().toISOString() };
+    setStock(prev => [...prev, newItem]);
+    addEvent({ time: new Date().toISOString(), description: `Material cadastrado: ${item.name}.`, type: 'success' });
+  };
+
+  const updateStockItem = (id: string, data: Partial<Omit<StockItem, 'id'>>) => {
+    setStock(prev => prev.map(s => {
+      if (s.id !== id) return s;
+      const updated = { ...s, ...data };
+      updated.status = computeStockStatus(updated.quantity, updated.minStock, updated.maxStock);
+      return updated;
+    }));
+  };
+
+  const removeStockItem = (id: string) => {
+    setStock(prev => {
+      const item = prev.find(s => s.id === id);
+      if (item) addEvent({ time: new Date().toISOString(), description: `Material removido: ${item.name}.`, type: 'warning' });
+      return prev.filter(s => s.id !== id);
+    });
+  };
+
+  const registerMovement = (movement: Omit<StockMovement, 'id'> & { type: MovementType }) => {
+    const id = `MOV-${Math.random().toString(36).substr(2, 7).toUpperCase()}`;
+    const newMov: StockMovement = { ...movement, id };
+    setMovements(prev => [newMov, ...prev].slice(0, 100));
+    setStock(prev => prev.map(s => {
+      if (s.id !== movement.stockItemId) return s;
+      const newQty = movement.type === 'entrada'
+        ? s.quantity + movement.quantity
+        : Math.max(0, s.quantity - movement.quantity);
+      const newStatus = computeStockStatus(newQty, s.minStock, s.maxStock);
+      if (newStatus === 'critical' && s.status !== 'critical') {
+        addEvent({ time: new Date().toISOString(), description: `🔴 CRÍTICO: Estoque de ${s.name} abaixo do nível mínimo crítico (${newQty} ${s.unit})!`, type: 'error' });
+      } else if (newStatus === 'low' && s.status === 'normal') {
+        addEvent({ time: new Date().toISOString(), description: `⚠️ BAIXO: Estoque de ${s.name} atingiu nível mínimo (${newQty} ${s.unit}).`, type: 'warning' });
+      }
+      return { ...s, quantity: newQty, status: newStatus, lastMovement: new Date().toISOString() };
+    }));
+    addEvent({ time: new Date().toISOString(), description: `Movimentação registrada: ${movement.type} de ${movement.quantity} ${movement.type !== 'transferencia' ? '' : '→'} ${movement.stockItemName}.`, type: 'info' });
+  };
+
   useEffect(() => {
     // Detect delays every 5 seconds
     const interval = setInterval(() => {
@@ -164,7 +217,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   description: `ALERTA: Rota ${r.id} estourou o prazo de ${r.estimatedDurationMins}m e encontra-se ATRASADA.`,
                   type: 'error'
                 });
-                return { ...r, status: 'delayed' };
+                return { ...r, status: 'delayed' as Route['status'] };
              }
            }
            return r;
@@ -178,9 +231,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   return (
     <AppContext.Provider value={{ 
       operators, vehicles, routes, events, locations, interdictions,
+      stock, movements,
       setOperators, setVehicles,
       addRoute, updateRouteStatus, updateVehicleStatus, addEvent,
-      addOperator, addVehicle, addLocation, addInterdiction 
+      addOperator, addVehicle, addLocation, addInterdiction,
+      addStockItem, updateStockItem, removeStockItem, registerMovement,
     }}>
       {children}
     </AppContext.Provider>
