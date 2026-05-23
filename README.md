@@ -4,7 +4,7 @@
 
 # Compass Logistics Dashboard
 
-Sistema de gestão logística portuária desenvolvido durante o Grand Prix SENAI para o desafio proposto pela Vale.
+Um protótipo de um sistema de gestão logística portuária desenvolvido durante o Grand Prix SENAI para o desafio proposto pela Vale.
 
 ## Objetivo
 
