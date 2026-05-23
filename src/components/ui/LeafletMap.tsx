@@ -1,9 +1,9 @@
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon, Tooltip, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Polygon, useMapEvents } from 'react-leaflet';
 import { Fragment, useState } from 'react';
 import L from 'leaflet';
 import { useAppContext } from '../../context/AppContext';
 import { Modal } from './Modal';
-import { Edit2, MapPin, AlertTriangle, Save, X } from 'lucide-react';
+import { Edit2, MapPin, AlertTriangle, Save } from 'lucide-react';
 
 // Custom icons based on status
 const createIcon = (color: string) => L.divIcon({
@@ -91,7 +91,14 @@ export const LeafletMap = ({ mini = false }: LeafletMapProps) => {
   
   // New marker form state
   const [markerType, setMarkerType] = useState<'location' | 'interdiction'>('location');
-  const [category, setCategory] = useState<string>('Terminais');
+  type Category =
+  | "Terminais"
+  | "Berços"
+  | "Ponta da Madeira"
+  | "Setores de Carga"
+  | "Estruturas Internas";
+
+  const [category, setCategory] = useState<Category>("Terminais");
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
 
@@ -309,7 +316,7 @@ export const LeafletMap = ({ mini = false }: LeafletMapProps) => {
                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria da Estrutura</label>
                  <select 
                    value={category}
-                   onChange={e => setCategory(e.target.value)}
+                   onChange={(e) => setCategory(e.target.value as Category)}
                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100"
                  >
                    {Object.keys(locations).map(cat => (

@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import {
-  Package, TrendingUp, TrendingDown, AlertTriangle, Plus, ArrowDownToLine,
+  Package, TrendingUp, AlertTriangle, Plus, ArrowDownToLine,
   ArrowUpFromLine, ArrowLeftRight, Pencil, Trash2, X, Filter, History,
-  Layers, Flame, Box, Wrench, Droplets, CheckCircle2, ChevronDown, Map
+  Layers, Flame, Box, Wrench, Droplets, CheckCircle2, Map
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import type { StockCategory, StockItem, MovementType } from '../data/mockData';
