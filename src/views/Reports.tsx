@@ -4,6 +4,8 @@ import { Download, Eye, FileText, Truck, MapPin, Package, Clock } from 'lucide-r
 import { format, differenceInMinutes } from 'date-fns';
 import { toast } from 'sonner';
 import { Modal } from '../components/ui/Modal';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export const Reports = () => {
   const { routes } = useAppContext();
@@ -23,17 +25,117 @@ export const Reports = () => {
       toast.error('Nenhum dado para exportar sob este filtro.');
       return;
     }
-    const headers = ['ID Rota', 'Status', 'Origem', 'Destino', 'Carga', 'Veículo', 'Operador', 'Prazo Mins', 'Inicio', 'Fim'];
-    const rows = reportRoutes.map(r => 
-      [r.id, r.status, `"${r.origin}"`, `"${r.destination}"`, `"${r.cargoType}"`, r.vehicleId, r.operatorId, r.estimatedDurationMins, r.startTime, r.endTime || '']
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const now = new Date();
+
+    // ── Cabeçalho ──────────────────────────────────────────────────
+    doc.setFillColor(15, 23, 42); // slate-900
+    doc.rect(0, 0, pageWidth, 22, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.text('COMPASS LOGISTICS', 14, 10);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(148, 163, 184); // slate-400
+    doc.text('Relatório Operacional de Rotas', 14, 17);
+
+    doc.setFontSize(9);
+    doc.setTextColor(148, 163, 184);
+    doc.text(
+      `Gerado em: ${format(now, 'dd/MM/yyyy • HH:mm')}`,
+      pageWidth - 14,
+      13,
+      { align: 'right' }
     );
-    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel UTF-8
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `relatorio_compass_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`;
-    link.click();
-    toast.success('Relatório baixado com sucesso!');
+
+    // ── Filtro aplicado ────────────────────────────────────────────
+    const filterLabel = filter === 'completed' ? 'Apenas Concluídas' : filter === 'delayed' ? 'Apenas Atrasadas' : 'Todas as Registradas';
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Filtro: ${filterLabel}  |  Total de rotas: ${reportRoutes.length}`, 14, 28);
+
+    // ── Tabela ─────────────────────────────────────────────────────
+    const tableHead = [['ID Rota', 'Status', 'Origem', 'Destino', 'Carga', 'Veículo', 'Operador', 'Prazo (min)', 'Início', 'Fim']];
+    const tableBody = reportRoutes.map(r => [
+      r.id,
+      r.status === 'completed' ? 'Concluída' : 'Atrasada',
+      r.origin,
+      r.destination,
+      r.cargoType,
+      r.vehicleId,
+      r.operatorId,
+      String(r.estimatedDurationMins),
+      format(new Date(r.startTime), 'dd/MM/yy HH:mm'),
+      r.endTime ? format(new Date(r.endTime), 'dd/MM/yy HH:mm') : '—',
+    ]);
+
+    autoTable(doc, {
+      startY: 32,
+      head: tableHead,
+      body: tableBody,
+      styles: {
+        font: 'helvetica',
+        fontSize: 8,
+        cellPadding: 3,
+        textColor: [30, 41, 59],
+      },
+      headStyles: {
+        fillColor: [15, 23, 42],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 8,
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
+      },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 22 },
+        1: { cellWidth: 22 },
+        7: { halign: 'center', cellWidth: 22 },
+        8: { cellWidth: 26 },
+        9: { cellWidth: 26 },
+      },
+      didDrawCell: (data) => {
+        // colorize status column
+        if (data.section === 'body' && data.column.index === 1) {
+          const status = reportRoutes[data.row.index]?.status;
+          doc.setTextColor(
+            status === 'completed' ? 22 : 194,
+            status === 'completed' ? 163 : 65,
+            status === 'completed' ? 74 : 12
+          );
+        }
+      },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 1) {
+          const status = reportRoutes[data.row.index]?.status;
+          data.cell.styles.textColor = status === 'completed' ? [22, 163, 74] : [194, 65, 12];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      },
+      margin: { left: 14, right: 14 },
+    });
+
+    // ── Rodapé ─────────────────────────────────────────────────────
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      const pageHeight = doc.internal.pageSize.getHeight();
+      doc.setDrawColor(226, 232, 240);
+      doc.line(14, pageHeight - 10, pageWidth - 14, pageHeight - 10);
+      doc.setFontSize(7);
+      doc.setTextColor(148, 163, 184);
+      doc.text('Compass Logistics Dashboard — Documento confidencial', 14, pageHeight - 5);
+      doc.text(`Página ${i} de ${pageCount}`, pageWidth - 14, pageHeight - 5, { align: 'right' });
+    }
+
+    doc.save(`relatorio_compass_${format(now, 'yyyyMMdd_HHmm')}.pdf`);
+    toast.success('Relatório PDF gerado com sucesso!');
   };
 
   return (
@@ -44,7 +146,7 @@ export const Reports = () => {
           <p className="text-slate-500">Histórico de rotas e performance do turno.</p>
         </div>
         <button onClick={handleExport} className="bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-lg shadow-md font-medium flex items-center gap-2 transition-colors">
-          <Download size={18} /> Exportar CSV
+          <Download size={18} /> Exportar PDF
         </button>
       </div>
 
